@@ -1,113 +1,49 @@
 package main
 
-import (
-	"sort"
-	"sync"
-)
 
+
+// Структура кеша
+// Обязательно содержит 2 публичных поля 
+// UpperBound - верхняя граница размера кеша
+// LowerBound - нижняя граница размера кеша
+// Если len > UpperBound, кеш автоматически вытеснит значения до нижней границы  
+// Если любое из этих значений 0 - то этого не произойдет
 type Cache struct {
-	UpperBound int
-	LowerBound int
-	values     map[string]*Element
-	keys       []string
-	vals       []Element
-	lock       sync.Mutex
+    UpperBound int
+    LowerBound int
 }
 
-type Element struct {
-	key   string
-	value interface{}
-	freq  int
-}
 
-func New() *Cache {
-	return &Cache{}
-}
+// Создает инстанс кеша
+func New() *Cache
 
-func (c *Cache) Swap(i, j int) {
-	c.keys[i], c.keys[j] = c.keys[j], c.keys[i]
-	c.vals[i], c.vals[j] = c.vals[j], c.vals[i]
-}
-func (c *Cache) Less(i, j int) bool {
-	return c.vals[i].freq < c.vals[j].freq
-}
+// Проверяет, содержит, ли кэкш ключ
+func (c *Cache) Has(key string) bool
 
-func (c *Cache) Has(key string) bool {
-	_, ok := c.values[key]
-	return ok
-}
-
-func (c *Cache) increment(elem *Element) {
-	elem.freq++
-}
-
+// Возвращает значение по ключу, если оно существует
+// Возвращает nil, если не существует
 func (c *Cache) Get(key string) interface{} {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	if e, ok := c.values[key]; ok {
-		c.increment(e)
-		return e.value
-	}
-	return nil
+    c.lock.Lock()
+    defer c.lock.Unlock()
+    if e, ok := c.values[key]; ok {
+        c.increment(e)
+        return e.value
+    }
+    return nil
 }
 
-func (c *Cache) Set(key string, value interface{}) {
-	c.lock.Lock()
-	if elem, ok := c.values[key]; ok {
-		c.values[key] = &Element{
-			key:   key,
-			value: value,
-			freq:  elem.freq + 1,
-		}
-	} else {
-		if c.Len() >= c.UpperBound && c.UpperBound != 0 && c.LowerBound != 0 {
-			sort.Sort(c)
-			for c.Len() != c.LowerBound {
-				firstKey := c.keys[0]
-				delete(c.values, firstKey)
-				c.keys = c.keys[1:]
-				c.vals = c.vals[1:]
-			}
-		}
-		elem := Element{
-			key:   key,
-			value: value,
-			freq:  1,
-		}
-		c.values[key] = &elem
-		c.keys = append(c.keys, key)
-		c.vals = append(c.vals, elem)
-	}
-}
+// Сохраняет значение по ключу
+func (c *Cache) Set(key string, value interface{})
 
-func (c *Cache) Len() int {
-	return len(c.values)
-}
+// Возвращает размер кеша
+func (c *Cache) Len() int
 
-func (c *Cache) GetFrequency(key string) int {
-	if elem, ok := c.values[key]; ok {
-		return elem.freq
-	}
-	return 0
-}
+// Возвращает частоту обращений к ключу
+func (c *Cache) GetFrequency(key string) int
 
-func (c *Cache) Keys() []string {
-	var result []string
-	for key := range c.values {
-		result = append(result, key)
-	}
-	return result
-}
+// Возвращает все ключи в кеше
+func (c *Cache) Keys() []string
 
-func (c *Cache) Evict(count int) int {
-	sort.Sort(c)
-	k := 0
-	for k < count && c.Len() != 0 {
-		firstKey := c.keys[0]
-		delete(c.values, firstKey)
-		c.keys = c.keys[1:]
-		c.vals = c.vals[1:]
-		k++
-	}
-	return k
-}
+// Удаляет заданное количество наименее часто используемых элементов элементов
+// Возвращает количество удаленных элементов
+func (c *Cache) Evict(count int) int
